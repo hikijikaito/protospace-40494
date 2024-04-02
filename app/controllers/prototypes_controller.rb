@@ -1,9 +1,8 @@
 class PrototypesController < ApplicationController
-  before_action :authenticate_user!, only: [:new, :edit, :destroy]
   before_action :set_prototype, only: [:show, :edit, :update, :destroy]
+  before_action :authenticate_user!, only: [:new, :create, :edit, :update, :destroy]
 
   def index
-    
     @prototypes = Prototype.all
   end
 
@@ -12,57 +11,46 @@ class PrototypesController < ApplicationController
   end
 
   def create
-    @prototype = Prototype.new(prototype_params)
+    @prototype = current_user.prototypes.build(prototype_params)
     if @prototype.save
-      redirect_to root_path
+      redirect_to root_path, notice: "Prototype was successfully created."
     else
       render :new, status: :unprocessable_entity
     end
   end
 
   def show
-    @prototype = Prototype.includes(:user).find(params[:id])
+    @prototype = Prototype.includes(:user, :comments).find(params[:id])
     @comment = Comment.new
-    @comments = @prototype.comments
+    @comments = @prototype.comments || []
   end
   
   def edit
-    @prototype = Prototype.find(params[:id])
     unless current_user == @prototype.user
-      redirect_to root_path
+      redirect_to root_path, alert: "You don't have permission to edit this prototype."
     end
   end
 
   def update
-    @prototype = Prototype.find(params[:id])
     if @prototype.update(prototype_params)
-      # 更新が成功した場合は、そのプロトタイプの詳細ページにリダイレクトする
-      redirect_to prototype_path(@prototype)
+      redirect_to @prototype, notice: "Prototype was successfully updated."
     else
-      # 更新が失敗した場合は、編集ページを再表示する
-      render :edit
+      render :edit, status: :unprocessable_entity
     end
   end
 
   def destroy
-    @prototype = Prototype.find(params[:id])
     @prototype.destroy
-    redirect_to root_path
+    redirect_to root_path, notice: "Prototype was successfully destroyed."
   end
 
   private
   
   def prototype_params
-    params.require(:prototype).permit(:title, :catch_copy, :concept, :image).merge(user_id: current_user.id)
+    params.require(:prototype).permit(:title, :catch_copy, :concept, :image)
   end
   
   def set_prototype
     @prototype = Prototype.find(params[:id])
-    
-    # プロトタイプの編集権限を確認し、ログインユーザーとプロトタイプの投稿者が一致しない場合はトップページにリダイレクトする
-    if @prototype.user != current_user
-      redirect_to root_path, alert: "他のユーザーのプロトタイプを編集することはできません。"
-    end
   end
-
 end
